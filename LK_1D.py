@@ -20,11 +20,13 @@ f = fun(x)
 dx = 0.5
 g = fun(x-dx)
 
-plt.ion()
+#plt.ion()
 plt.figure()
 plt.plot(x, f, x, g)
+plt.xticks(np.arange(0,10,1))
 plt.show(block=False)
-plt.draw()
+plt.grid()
+#plt.draw()
 plt.pause(1)
 
 x_query = float(input('Where do you want to determine optic flow? x = '))
