@@ -16,11 +16,17 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import pdb
 from copy import copy, deepcopy
 
-def Harris_pixel(x, y, gray, k = 0.04):
+def Harris_pixel(x, y, gray, k = 0.04, Sobel =True):
     
-    # this is as specified in the article (no Sobel)
-    dx = (gray[y, x+1] - gray[y, x-1]) / 2
-    dy = (gray[y+1, x] - gray[y-1, x]) / 2
+    if(not Sobel):
+        # this is as specified in the article (no Sobel)
+        dx = (gray[y, x+1] - gray[y, x-1]) / 2
+        dy = (gray[y+1, x] - gray[y-1, x]) / 2
+    else:
+        # Sobel
+        dx = ((gray[y-1, x+1] - gray[y-1, x-1])+2*(gray[y, x+1] - gray[y, x-1])+(gray[y+1, x+1] - gray[y+1, x-1])) / 8
+        dy = ((gray[y+1, x-1] - gray[y-1, x-1])+2*(gray[y+1, x] - gray[y-1, x])+(gray[y+1, x+1] - gray[y-1, x+1])) / 8
+        
     
     dx2 = dx * dx
     dy2 = dy * dy
@@ -133,6 +139,7 @@ def get_Harris_vectorized(filename):
     Corners = non_maximum_suppression(Harris)
     Corners = scipy.ndimage.binary_dilation(Corners)
     BGR[Corners > 0] = [0,0,255]
+    BGR[Harris < 0] = [255,0,0]
     cv2.imshow('Corners', BGR)
 
 def get_Harris_response(filename):
@@ -150,7 +157,7 @@ def get_Harris_response(filename):
     Harris = np.zeros([height, width])
     gray_float = gray.astype(float)
     
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
     
     # loop over the image, ignoring a 1-pixel border in which the gradients are not defined
     for y in range(1, height - 1):
@@ -158,13 +165,13 @@ def get_Harris_response(filename):
             [H, alpha, beta, tr, det, dx, dy] = Harris_pixel(x, y, gray_float)
             Harris[y,x] = H
             
-            if(det != 0):
-                patch = OffsetImage(gray_float[y-1:y+2, x-1:x+2], zoom=3)  
-                ab = AnnotationBbox(patch, (alpha, beta), frameon=False)
-                ax.add_artist(ab)
-            
+#            if(det != 0):
+#                patch = OffsetImage(gray_float[y-1:y+2, x-1:x+2], zoom=3)  
+#                ab = AnnotationBbox(patch, (alpha, beta), frameon=False)
+#                ax.add_artist(ab)
     
-    Corners = non_maximum_suppression(Harris)
+    Corners = non_maximum_suppression(Harris, threshold_factor = 0.20)
+    Corners = scipy.ndimage.binary_dilation(Corners)
     
     plt.figure()
     plt.imshow(Harris)
@@ -236,5 +243,5 @@ def plot_patches(n_patches = 1000):
 
 # get_Harris_response('bebop_flowers_1.jpg')
 # get_Harris_response('chess_board.jpg')
-# get_Harris_vectorized('chess_board.jpg')
-get_Harris_vectorized('bebop_flowers_1.jpg')
+get_Harris_vectorized('chess_board.jpg')
+#get_Harris_vectorized('bebop_flowers_1.jpg')
