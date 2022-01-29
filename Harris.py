@@ -43,7 +43,18 @@ def Harris_pixel(x, y, gray, k = 0.04, Sobel =True):
     H = abs(det - k * tr*tr)
     
     return [H, alpha, beta, tr, det, dx, dy]
+
+def plot_Harris_function(k=0.04):
     
+    plt.figure()
+    alpha = np.arange(0, 7, 0.01)
+    beta = np.arange(0, 7, 0.01)
+    [X,Y] = np.meshgrid(alpha, beta)
+    R = X * Y - k * (X+Y)**2
+    levels = np.arange(-3, 6, 1)
+    cs = plt.contour(X, Y, R, levels)
+    plt.clabel(cs, levels)
+
 def non_maximum_suppression(Harris, dist = 1, threshold_factor = 0.05):
     
     max_H = np.max(Harris[:])
@@ -68,7 +79,7 @@ def gradient_y(imggray):
     kernel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
     return signal.convolve2d(imggray, kernel_y, mode='same')
     
-def get_Harris_vectorized(filename, IMAGE_PATCHES = False):
+def get_Harris_vectorized(filename):
     # load the BGR color image:
     BGR = cv2.imread(filename)
     gray = cv2.cvtColor(BGR, cv2.COLOR_BGR2GRAY)
@@ -85,6 +96,10 @@ def get_Harris_vectorized(filename, IMAGE_PATCHES = False):
     I_x = gradient_x(gray_float)
     I_y = gradient_y(gray_float)
     
+#    Ixx = I_x**2
+#    Ixy = I_y*I_x
+#    Iyy = I_y**2
+    
     Ixx = scipy.ndimage.gaussian_filter(I_x**2, sigma=1)
     Ixy = scipy.ndimage.gaussian_filter(I_y*I_x, sigma=1)
     Iyy = scipy.ndimage.gaussian_filter(I_y**2, sigma=1)
@@ -98,10 +113,10 @@ def get_Harris_vectorized(filename, IMAGE_PATCHES = False):
         
     Harris = detA - k * traceA ** 2
     
-    #    plt.figure()
-    #    plt.imshow(detA)
-    #    plt.colorbar()
-    #    plt.title('Determinant')
+    plt.figure()
+    plt.imshow(detA)
+    plt.colorbar()
+    plt.title('Determinant')
 
     plt.figure()
     plt.imshow(Harris)
