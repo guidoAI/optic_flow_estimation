@@ -68,18 +68,19 @@ def gradient_y(imggray):
     kernel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
     return signal.convolve2d(imggray, kernel_y, mode='same')
     
-def get_Harris_vectorized(filename):
+def get_Harris_vectorized(filename, IMAGE_PATCHES = False):
     # load the BGR color image:
     BGR = cv2.imread(filename)
     gray = cv2.cvtColor(BGR, cv2.COLOR_BGR2GRAY)
     height = gray.shape[0]
     width = gray.shape[1]
-    gray = cv2.resize(gray, (int(width/4), int(height/4)))
-    BGR = cv2.resize(BGR, (int(width/4), int(height/4)))
-    height = gray.shape[0]
-    width = gray.shape[1]
+    if(height * width >= 1E5):
+        gray = cv2.resize(gray, (int(width/4), int(height/4)))
+        BGR = cv2.resize(BGR, (int(width/4), int(height/4)))
+        height = gray.shape[0]
+        width = gray.shape[1]
     
-    gray_float = gray.astype(float)
+    gray_float = gray.astype(float) / 255.0
     
     I_x = gradient_x(gray_float)
     I_y = gradient_y(gray_float)
@@ -97,50 +98,23 @@ def get_Harris_vectorized(filename):
         
     Harris = detA - k * traceA ** 2
     
-    plt.figure()
-    plt.imshow(detA)
-    plt.colorbar()
-    plt.title('Determinant')
-    
+    #    plt.figure()
+    #    plt.imshow(detA)
+    #    plt.colorbar()
+    #    plt.title('Determinant')
+
     plt.figure()
     plt.imshow(Harris)
     plt.colorbar()
     plt.title('Harris response')
-    
-    fig, ax = plt.subplots()
-    for y in range(1, height - 1):
-        for x in range(1, width - 1):
-            
-            dx2 = Ixx[y,x]
-            dy2 = Iyy[y,x]
-            dxdy = Ixy[y,x]
-            
-            M = np.asarray([[dx2, dxdy],[dxdy, dy2]])
-            ev = np.linalg.eigvals(M)
-            alpha = ev[0]
-            beta = ev[1]
-            
-            det = dx2 * dy2 - dxdy * dxdy
-#            if(detA[y,x] != 0):
-#                print(f'detA[{y},{x}] = {detA[y,x]}, det = {det}')
-            
-            r = np.random.rand(1)
-            if(det != 0 and r < 0.05):
-                plt.plot(alpha, beta, 'kx')
-                Patch = BGR[y-1:y+2, x-1:x+2]
-                RGB = deepcopy(Patch)
-                RGB[:,:,0] = Patch[:,:,2]
-                RGB[:,:,2] = Patch[:,:,0]
-                patch = OffsetImage(RGB, zoom=3)  
-                ab = AnnotationBbox(patch, (alpha, beta), frameon=False)
-                ax.add_artist(ab)
-    plt.title('Patches')
 
     Corners = non_maximum_suppression(Harris)
     Corners = scipy.ndimage.binary_dilation(Corners)
     BGR[Corners > 0] = [0,0,255]
     BGR[Harris < 0] = [255,0,0]
     cv2.imshow('Corners', BGR)
+    
+    return [Harris, Ixx, Iyy, Ixy, BGR, detA, traceA, I_x, I_y]
 
 def get_Harris_response(filename):
     # load the BGR color image:
@@ -238,10 +212,63 @@ def plot_patches(n_patches = 1000):
         patch = OffsetImage(gray, zoom=10)  
         ab = AnnotationBbox(patch, (alpha, beta), frameon=False)
         ax.add_artist(ab)
+
+def plot_eigenvalues(Harris, Ixx, Iyy, Ixy, BGR, k=0.04, IMAGE_PATCHES=False):
+
+    height = BGR.shape[0]
+    width = BGR.shape[1]
+    
+    threshold = 5E3 / (height* width)
+    print(f'Threshold = {threshold}')
+    
+    fig, ax = plt.subplots()
+    alpha = np.arange(0, 7, 0.01)
+    beta = np.arange(0, 7, 0.01)
+    [X,Y] = np.meshgrid(alpha, beta)
+    R = X * Y - k * (X+Y)**2
+    plt.figure()
+    levels = np.arange(-3, 6, 1)
+    cs = plt.contour(X, Y, R, levels)
+    plt.clabel(cs, levels)
+    
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+        
+            dx2 = Ixx[y,x]
+            dy2 = Iyy[y,x]
+            dxdy = Ixy[y,x]
+            
+            M = np.asarray([[dx2, dxdy],[dxdy, dy2]])
+            ev = np.linalg.eigvals(M)
+            alpha = ev[0]
+            beta = ev[1]
+            
+            det = dx2 * dy2 - dxdy * dxdy
+#            if(detA[y,x] != 0):
+#                print(f'detA[{y},{x}] = {detA[y,x]}, det = {det}')
+            
+            r = np.random.rand(1)
+            if(det != 0 and r < threshold):
+                plt.plot(alpha, beta, 'kx')
+                
+                if(IMAGE_PATCHES):
+                    Patch = BGR[y-1:y+2, x-1:x+2]
+                    RGB = deepcopy(Patch)
+                    RGB[:,:,0] = Patch[:,:,2]
+                    RGB[:,:,2] = Patch[:,:,0]
+                    patch = OffsetImage(RGB, zoom=3)  
+                    ab = AnnotationBbox(patch, (alpha, beta), frameon=False)
+                    ax.add_artist(ab)
+    plt.title('Eigenvalues')
     
 # plot_patches()
 
 # get_Harris_response('bebop_flowers_1.jpg')
 # get_Harris_response('chess_board.jpg')
-get_Harris_vectorized('chess_board.jpg')
-#get_Harris_vectorized('bebop_flowers_1.jpg')
+# get_Harris_vectorized('chess_board.jpg')
+# get_Harris_vectorized('bebop_flowers_1.jpg')
+#get_Harris_vectorized('flower.png')
+#get_Harris_vectorized('bebop.png')
+
+[Harris, Ixx, Iyy, Ixy, BGR, detA, traceA, I_x, I_y] = get_Harris_vectorized('bebop.png')
+#plot_eigenvalues(Harris, Ixx, Iyy, Ixy, BGR, k=0.04)
