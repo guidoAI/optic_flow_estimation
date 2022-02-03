@@ -13,7 +13,6 @@ from matplotlib import pyplot as plt
 import scipy
 from scipy import signal
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import pdb
 from copy import copy, deepcopy
 
 def Harris_pixel(x, y, gray, k = 0.04, Sobel =True):
